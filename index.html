@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ReadIt - PDF Document Tutor</title> 
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Load Mozilla's PDF.js for client-side PDF reading -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.13.216/pdf.min.js"></script>
+    <script>
+        // Set the worker source for PDF.js
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.13.216/pdf.worker.min.js';
+    </script>
+    
+    <!-- 🛑 KaTeX for Math Rendering (CSS) -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css" crossorigin="anonymous">
+
+    <!-- Use Poppins for Headers and Inter for body text -->
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;800&display=swap');
+        
+        /* --- DARK MODE (Exclusive Styles) --- */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a; /* Slate-900 (Dark BG) */
+            background-image: none;
+            color: #e2e8f0; /* Slate-200 (Default Text) */
+            transition: background-color 0.3s ease;
+        }
+        
+        /* Poppins for main title/header */
+        #main-container h1 {
+            font-family: 'Poppins', sans-serif;
+        }
+        
+        /* Main Container */
+        #main-container {
+            background-color: #1e293b; /* Slate-800 container */
+            border-color: #334155; /* Slate-700 border */
+        }
+        
+        /* High Contrast Labels and Headings */
+        .readable-label {
+             color: #f1f5f9; /* Slate-100 */
+        }
+        
+        /* New Primary Color Palette (Cyan/Teal) */
+        .primary-color-text {
+            color: #22d3ee; /* Cyan-400 */
+        }
+        .primary-gradient-btn {
+             /* Dark Mode Cyan to Teal Gradient */
+            background-image: linear-gradient(to right, #06b6d4, #2dd4bf); 
+            box-shadow: 0 10px 15px -3px rgba(34, 211, 238, 0.3), 0 4px 6px -2px rgba(34, 211, 238, 0.1);
+        }
+        .primary-gradient-btn:hover {
+            background-image: linear-gradient(to right, #0891b2, #14b8a6);
+        }
+
+        /* Answer Output Area Styling */
+        #answerText {
+            text-align: left; 
+            background-color: #0f172a; /* Slate-900 */
+            border-color: #334155;
+            color: #cbd5e1; /* Slate-300 */
+        }
+        #answerText h1, #answerText h2, #answerText h3 {
+            font-weight: 700;
+            margin-top: 1.5rem;
+            margin-bottom: 0.75rem;
+            color: #f1f5f9; /* Slate-100 */
+        }
+        #answerText ul, #answerText ol {
+            padding-left: 20px;
+            margin-bottom: 10px;
+        }
+        #answerText ul {
+            list-style-type: disc;
+        }
+        #answerText p {
+            margin-bottom: 10px;
+        }
+        .image-suggestion {
+            background-color: #164e63; /* Cyan-800 */
+            border-left: 4px solid #5eead4; /* Teal-300 */
+            color: #e0f2f1;
+            padding: 1rem;
+            margin-top: 1.5rem;
+            margin-bottom: 1.5rem;
+            border-radius: 0.5rem;
+            font-style: italic;
+        }
+        .image-suggestion strong {
+            color: #2dd4bf; 
+        }
+
+        /* Loading Animation */
+        .dot {
+            width: 10px;
+            height: 10px;
+            background-color: #22d3ee; /* Light Cyan */
+            border-radius: 50%;
+            display: inline-block;
+            margin: 0 4px;
+            animation: bounce 1.4s infinite ease-in-out both;
+        }
+        
+        .dot-2 {
+            animation-delay: -0.32s;
+        }
+
+        .dot-3 {
+            animation-delay: -0.16s;
+        }
+
+        @keyframes bounce {
+            0%, 80%, 100% {
+                transform: scale(0);
+            }
+            40% {
+                transform: scale(1.0);
+            }
+        }
+        
+        /* Entrance/Fade-in Animation */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in {
+            animation: fadeIn 0.6s ease-out forwards;
+        }
+    </style>
+</head>
+<body class="p-4 sm:p-8">
+
+    <div id="main-container" class="max-w-4xl mx-auto shadow-2xl rounded-xl p-8 md:p-12 border animate-fade-in transition duration-300 text-center">
+        
+        <!-- Header: ReadIt with Logo -->
+        <div class="flex justify-start items-center mb-6 text-left border-b border-slate-700 pb-4">
+            <h1 class="text-4xl font-extrabold primary-color-text tracking-tight flex items-center">
+                <!-- Inline SVG Logo: Document/Reading Icon -->
+                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-8 h-8 text-teal-400 mr-2">
+                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+                    <path d="M6.5 2H20v20h-7.5"/>
+                    <path d="M18 6H9"/>
+                    <path d="M18 10H9"/>
+                </svg>
+                ReadIt
+            </h1>
+        </div>
+        
+        <!-- Configuration (Hidden) -->
+        <div id="config-area" class="hidden">
+            <input type="password" id="apiKey" value="AIzaSyAqZIGfp7v2mSU5Mj9-ZNcy6B_-pdq34nE">
+        </div>
+
+        <!-- PDF Upload Input (CUSTOM DROPZONE) -->
+        <div class="mb-8">
+            <label class="block text-xl font-semibold readable-label mb-3">1. Upload Your Document (PDF)</label>
+            
+            <!-- Dropzone Container: Relative position for the absolute input -->
+            <div id="dropzone" class="max-w-xl mx-auto p-12 border-2 border-dashed border-cyan-600 rounded-xl bg-slate-800/50 hover:border-cyan-400 transition duration-300 shadow-xl relative cursor-pointer">
+                
+                <!-- Hidden/Transparent File Input: Covers the entire dropzone area -->
+                <input type="file" id="pdfFile" accept="application/pdf" 
+                    class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" 
+                    aria-label="Upload PDF File"/>
+
+                <!-- Custom Dropzone Content/Prompt: pointer-events-none ensures clicks pass through to the hidden input -->
+                <div class="flex flex-col items-center justify-center text-center pointer-events-none">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-9 h-9 text-cyan-400 mb-3">
+                        <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
+                        <polyline points="14 2 14 8 20 8"/>
+                        <line x1="12" y1="13" x2="12" y2="19"/>
+                        <line x1="15" y1="16" x2="9" y2="16"/>
+                    </svg>
+                    
+                    <p id="clickPrompt" class="text-lg font-semibold text-slate-200">
+                        Click anywhere here to select file
+                    </p>
+                    <p class="text-sm text-slate-400 mt-1">
+                        Drag and drop any PDF document (Max 150MB)
+                    </p>
+                    <!-- File Name Display (Dynamically updated by JS) -->
+                    <p id="fileNameDisplay" class="text-sm text-teal-400 mt-4 font-medium hidden">
+                        No file selected.
+                    </p>
+                </div>
+            </div>
+            
+            <div id="fileStatus" class="mt-3 text-sm text-slate-400 min-h-[20px]">
+                <span class="text-red-400 hidden" id="sizeError">❌ File size must be under 150 MB.</span> 
+            </div>
+        </div>
+
+        <!-- Extracted Text Display (Internal Use) -->
+        <div class="hidden">
+            <textarea id="extractedContent" rows="1" disabled></textarea>
+        </div>
+
+        <!-- Question Input and Submit (Centered Block) -->
+        <div class="mb-10">
+            <label for="questionInput" class="block text-xl font-semibold readable-label mb-3">2. Ask a Question</label>
+            
+            <!-- Centering the Input and Button together -->
+            <div class="flex flex-col sm:flex-row gap-4 max-w-2xl mx-auto items-center">
+                <input type="text" id="questionInput" placeholder="Ex: Summarize the key findings of the report." 
+                    class="flex-grow block w-full rounded-lg border-2 border-slate-600 shadow-inner p-4 text-left focus:ring-cyan-500 focus:border-cyan-500 transition duration-150 bg-slate-700 text-slate-100">
+                
+                <!-- PRIMARY AESTHETIC BUTTON: Cyan/Teal Gradient -->
+                <button id="submitBtn" 
+                        class="w-full sm:w-auto mt-0 py-3 px-8 
+                               primary-gradient-btn text-white 
+                               font-bold rounded-lg hover:shadow-xl
+                               transition duration-300 ease-in-out 
+                               transform hover:scale-[1.03] active:scale-[0.98] 
+                               disabled:bg-slate-600 disabled:shadow-none disabled:cursor-not-allowed 
+                               disabled:from-slate-600 disabled:to-slate-500"
+                        disabled>
+                    Get Answer
+                </button>
+            </div>
+        </div>
+
+        <!-- Answer Output Area -->
+        <div id="outputArea" class="mt-10 animate-fade-in" style="animation-delay: 0.3s;">
+            <h2 class="text-2xl font-semibold readable-label mb-4 border-b pb-2 text-left border-slate-700">3. Tutor Response</h2>
+            <div id="answerText" class="min-h-[120px] p-6 rounded-xl border leading-relaxed shadow-inner transition duration-300">
+                <p>Please upload your study PDF to enable the tutor.</p>
+            </div>
+            
+            <!-- Follow-up/Next Question Options (Centered Buttons) -->
+            <div id="followUpOptions" class="mt-6 flex justify-center space-x-4 hidden">
+                
+                <!-- AESTHETIC FOLLOW-UP BUTTON: Primary Gradient -->
+                <button id="followUpBtn" 
+                        class="py-2 px-6 
+                               primary-gradient-btn text-white 
+                               font-medium rounded-lg shadow-lg
+                               hover:shadow-xl
+                               transition duration-300 transform hover:scale-[1.03] active:scale-[0.97]">
+                    Ask Follow-up
+                </button>
+                
+                <!-- AESTHETIC SECONDARY BUTTON (Outlined) -->
+                <button id="nextQuestionBtn" 
+                        class="py-2 px-6 bg-slate-800 text-cyan-300 border-2 border-cyan-500 
+                               font-medium rounded-lg shadow-md hover:bg-slate-700 hover:text-cyan-200
+                               transition duration-300 transform hover:scale-[1.03] active:scale-[0.97]">
+                    Move to Next Question
+                </button>
+            </div>
+        </div>
+
+    </div>
+    
+    <!-- Footer Section -->
+    <footer class="max-w-4xl mx-auto mt-10 p-4 text-center text-sm text-slate-400 border-t border-slate-700">
+        <p>&copy; 2025 ReadIt Tutor. Developed with 💙 by Punit Kantrod for Software Engineering.</p>
+    </footer>
+
+    <!-- JavaScript Logic -->
+    <!-- 🛑 KaTeX and Marked.js for Rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/marked@12.0.0/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js" crossorigin="anonymous"></script>
+
+
+    <script>
+        // Use the Gemini API Key
+        const GEMINI_KEY = document.getElementById('apiKey').value;
+        const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${GEMINI_KEY}`;
+        
+        // --- CONSTANTS ---
+        const MAX_FILE_SIZE_BYTES = 150 * 1024 * 1024; // 150 MB
+        const MIN_CONTENT_LENGTH = 50; // Minimum content length required for RAG to be meaningful
+        // --- END CONSTANTS ---
+
+        // Get DOM elements
+        const pdfFileEl = document.getElementById('pdfFile');
+        const fileStatusEl = document.getElementById('fileStatus');
+        const sizeErrorEl = document.getElementById('sizeError');
+        const extractedContentEl = document.getElementById('extractedContent');
+        const questionInputEl = document.getElementById('questionInput');
+        const submitBtnEl = document.getElementById('submitBtn');
+        const answerTextEl = document.getElementById('answerText');
+        
+        // Custom Dropzone Elements
+        const dropzoneEl = document.getElementById('dropzone');
+        const fileNameDisplayEl = document.getElementById('fileNameDisplay'); 
+        const clickPromptEl = document.getElementById('clickPrompt');
+
+        // Follow-up Elements
+        const followUpOptionsEl = document.getElementById('followUpOptions');
+        const followUpBtnEl = document.getElementById('followUpBtn');
+        const nextQuestionBtnEl = document.getElementById('nextQuestionBtn');
+        
+        // --- Core PDF Extraction Logic ---
+
+        // Function to extract text from a PDF file using PDF.js and tag with page numbers
+        async function extractTextFromPDF(file) {
+            fileStatusEl.innerHTML = '<span class="text-cyan-400 font-medium">⏳ Extracting text and structuring pages... This may take a moment.</span>';
+            submitBtnEl.disabled = true;
+
+            const arrayBuffer = await file.arrayBuffer();
+            const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+            const pdf = await loadingTask.promise;
+            
+            let fullContext = '';
+            for (let i = 1; i <= pdf.numPages; i++) {
+                const page = await pdf.getPage(i);
+                const textContent = await page.getTextContent();
+                // Join text items and trim any excessive whitespace
+                const pageText = textContent.items.map(item => item.str).join(' ').trim();
+                
+                if (pageText.length > 0) {
+                    // Prepend the page number to the text chunk so the model can cite it
+                    fullContext += `\n\n---START PAGE ${i} ---\n${pageText}\n---END PAGE ${i}---`;
+                }
+            }
+            
+            return fullContext.trim();
+        }
+
+        // --- Event Handlers ---
+
+        pdfFileEl.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            extractedContentEl.value = '';
+            submitBtnEl.disabled = true;
+            sizeErrorEl.classList.add('hidden');
+            followUpOptionsEl.classList.add('hidden'); 
+            fileStatusEl.innerHTML = 'Awaiting file upload...';
+
+            if (!file) {
+                fileStatusEl.innerHTML = 'Please upload a PDF file (max 150MB).';
+                fileNameDisplayEl.textContent = 'No file selected.';
+                fileNameDisplayEl.classList.add('hidden'); 
+                clickPromptEl.classList.remove('hidden'); 
+                return;
+            }
+
+            if (file.size > MAX_FILE_SIZE_BYTES) {
+                sizeErrorEl.classList.remove('hidden');
+                fileStatusEl.innerHTML = '';
+                fileNameDisplayEl.textContent = `File selected: ${file.name}`;
+                fileNameDisplayEl.classList.remove('hidden');
+                return;
+            }
+
+            if (file.type !== 'application/pdf') {
+                alertBox("Please upload a valid PDF file.", "error");
+                fileNameDisplayEl.textContent = `File selected: ${file.name} (Invalid Type)`;
+                fileNameDisplayEl.classList.remove('hidden');
+                return;
+            }
+            
+            // File successfully selected and valid
+            fileNameDisplayEl.textContent = `File selected: ${file.name}`;
+            fileNameDisplayEl.classList.remove('hidden');
+            clickPromptEl.classList.add('hidden'); 
+            
+            try {
+                const extractedText = await extractTextFromPDF(file);
+                
+                extractedContentEl.value = extractedText;
+                
+                // --- FIX: Check if extracted content is sufficient before enabling the button ---
+                if (extractedText.length < MIN_CONTENT_LENGTH) {
+                    fileStatusEl.innerHTML = '<span class="text-red-400 font-medium">❌ Document contains too little readable text. Please upload a detailed PDF.</span>';
+                    submitBtnEl.disabled = true; // Keep disabled if content is too short
+                } else {
+                    fileStatusEl.innerHTML = `<span class="text-green-400 font-medium">✅ Text extracted successfully! (${(file.size/1024/1024).toFixed(2)} MB loaded)</span>`;
+                    submitBtnEl.disabled = false; // Enable only if content is sufficient
+                }
+                
+            } catch (error) {
+                console.error("PDF Extraction Error:", error);
+                alertBox(`Error during PDF extraction: ${error.message}. Please try a different PDF.`, "error");
+                fileStatusEl.innerHTML = '<span class="text-red-400">❌ Extraction failed. Check console for details.</span>';
+            }
+        });
+
+
+        // --- Gemini API & RAG Logic ---
+
+        // Loading animation HTML
+        const loadingHTML = `
+            <div class="flex flex-col items-center justify-center p-8 text-cyan-400">
+                <div class="space-x-1">
+                    <div class="dot"></div>
+                    <div class="dot dot-2"></div>
+                    <div class="dot dot-3"></div>
+                </div>
+                <p class="mt-4 font-medium">Tutor is generating the answer...</p>
+            </div>
+        `;
+
+
+        // Function for exponential backoff (retry API calls)
+        async function fetchWithRetry(url, options, maxRetries = 5) {
+            for (let i = 0; i < maxRetries; i++) {
+                try {
+                    const response = await fetch(url, options);
+                    if (response.status !== 429) { 
+                        return response;
+                    }
+                } catch (error) {
+                    console.warn(`Network error, retrying in ${2 ** i}s...`);
+                }
+                await new Promise(resolve => setTimeout(resolve, (2 ** i) * 1000));
+            }
+            throw new Error('API call failed after multiple retries.');
+        }
+
+        async function askTutor() {
+            const context = extractedContentEl.value.trim();
+            let question = questionInputEl.value.trim();
+
+            // --- FIX: Use MIN_CONTENT_LENGTH constant for clearer check ---
+            if (context.length < MIN_CONTENT_LENGTH) {
+                alertBox("The document is too short or contains no readable text. Please upload a valid PDF.", "error");
+                return;
+            }
+            if (!question) {
+                alertBox("Please enter your question.", "error");
+                return;
+            }
+
+            // Disable button and show fancy loading
+            submitBtnEl.disabled = true;
+            answerTextEl.innerHTML = loadingHTML;
+            followUpOptionsEl.classList.add('hidden'); 
+
+            // Text part (the combined prompt with strict citation instruction AND image suggestion instruction)
+            const fullPrompt = `As a friendly, expert tutor, provide an easy-to-understand and detailed explanation for the user's question. Base your answer STRICTLY on the context provided below. Whenever you use information directly from the context, you MUST cite the page number using the format (Page X). Refer to the page numbers inside the '---START PAGE X---' blocks. Use simple language suitable for a student. Use LaTeX syntax for all mathematical expressions and formulas, enclosed in single dollar signs for inline ($...$) and double dollar signs for block ($$...$$).
+
+If, and ONLY IF, a visual diagram, chart, or image would significantly help a student understand the concept you are explaining, then include a line in your response like this: '[IMAGE_NEEDED: A simple diagram explaining X concept]' where 'X concept' is a brief description of the image. Do NOT generate the image directly, just suggest it with this specific keyword.
+
+---CONTEXT START---
+${context}
+---CONTEXT END---
+
+Question: ${question}`;
+
+            const contentsParts = [{ text: fullPrompt }];
+
+            const payload = {
+                // Send parts array
+                contents: [{ parts: contentsParts }], 
+                systemInstruction: {
+                    // Updated System Instruction for generic document handling
+                    parts: [{ text: "You are an expert tutor known for giving detailed, easy-to-understand, and comprehensive answers suitable for a student or professional working with documents. Always elaborate sufficiently and maintain a friendly tone. Use standard Markdown for lists and formatting, and LaTeX syntax for math. CITE ALL FACTS with the page number in the format (Page X). If a visual would greatly aid understanding, suggest it using the exact format: '[IMAGE_NEEDED: brief description]'. Never generate images directly, only suggest them." }]
+                },
+            };
+
+            try {
+                const response = await fetchWithRetry(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`API returned status ${response.status}`);
+                }
+
+                const result = await response.json();
+                const text = result.candidates?.[0]?.content?.parts?.[0]?.text || "Error: Could not retrieve a valid answer from the model.";
+
+                renderAnswer(text);
+
+            } catch (error) {
+                console.error("API Call Error:", error);
+                alertBox(`An error occurred: ${error.message}. Please check your API key or network connection.`, "error");
+            } finally {
+                submitBtnEl.disabled = false;
+            }
+        }
+
+        // Handles Markdown and KaTeX rendering
+        function renderAnswer(markdownText) {
+            // First, process the image suggestion keyword
+            let processedText = markdownText.replace(/\[IMAGE_NEEDED:\s*(.*?)\]/g, (match, description) => {
+                // Changed "Champ" to "Friend" for a more generic and friendly tone
+                return `<div class="image-suggestion"><strong>Image Suggestion:</strong> Friend, a visual aid would be beneficial here. Imagine an image depicting: <em>${description}</em></div>`;
+            });
+
+            // 1. Markdown to HTML Conversion
+            const htmlContent = marked.parse(processedText);
+            answerTextEl.innerHTML = htmlContent;
+
+            // 2. KaTeX Rendering for Math
+            renderMathInElement(answerTextEl, {
+                // Configure KaTeX to look for both inline ($...$) and block ($$...$$) math
+                delimiters: [
+                    {left: '$$', right: '$$', display: true},
+                    {left: '$', right: '$', display: false},
+                ],
+                // Add the correct class to display equations centered
+                displayMode: true, 
+                // Enable necessary environments (like align, matrix)
+                throwOnError: false
+            });
+            
+            // 3. Add fade-in effect to the newly rendered content
+            answerTextEl.classList.remove('animate-fade-in');
+            void answerTextEl.offsetWidth; // Trigger reflow
+            answerTextEl.classList.add('animate-fade-in');
+
+            // 4. Show follow-up options
+            followUpOptionsEl.classList.remove('hidden');
+        }
+
+        // Helper function for user-friendly notifications (instead of alert())
+        function alertBox(message, type) {
+            let color;
+            if (type === "error") {
+                color = "bg-red-900 border-red-700 text-red-300";
+            } else if (type === "info") {
+                color = "bg-cyan-900 border-cyan-700 text-cyan-300"; // Cyan for info messages
+            } else {
+                color = "bg-yellow-900 border-yellow-700 text-yellow-300";
+            }
+            // Use the readable-label class for strong contrast
+            answerTextEl.innerHTML = `<div class="p-4 border rounded-lg ${color} shadow-sm text-left readable-label">${message}</div>`;
+            followUpOptionsEl.classList.add('hidden'); // Hide options when showing an alert or error
+        }
+
+        // --- Follow-up Logic ---
+
+        function handleNextQuestion() {
+            questionInputEl.value = '';
+            // Reset file display
+            fileNameDisplayEl.textContent = 'No file selected.';
+            fileNameDisplayEl.classList.add('hidden');
+            clickPromptEl.classList.remove('hidden');
+            
+            // Changed "Champ" to "Friend"
+            answerTextEl.innerHTML = '<p>Great! What\'s the next topic we should cover, Friend? Type your new question above!</p>'; 
+            followUpOptionsEl.classList.add('hidden');
+            questionInputEl.focus();
+        }
+
+        function handleFollowUp() {
+            // Keep the current answer visible, but focus on the input for the new question
+            questionInputEl.value = '';
+            alertBox("Awesome! Type your follow-up question in the input box above to dive deeper!", "info");
+            questionInputEl.focus();
+        }
+        
+        // Event Listeners
+        submitBtnEl.addEventListener('click', askTutor);
+        questionInputEl.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !submitBtnEl.disabled) {
+                askTutor();
+            }
+        });
+        
+        // New Follow-up button event listeners
+        followUpBtnEl.addEventListener('click', handleFollowUp);
+        nextQuestionBtnEl.addEventListener('click', handleNextQuestion);
+
+        // Initial setup and animation when the page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            const mainContainer = document.getElementById('main-container');
+            mainContainer.style.opacity = 0;
+            mainContainer.style.transform = 'translateY(10px)';
+            // Manually add the class after a slight delay to ensure the animation runs
+            setTimeout(() => {
+                mainContainer.style.opacity = 1;
+                mainContainer.style.transform = 'translateY(0)';
+            }, 50);
+        });
+    </script>
+</body>
+</html>
